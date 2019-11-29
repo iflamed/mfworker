@@ -1,6 +1,6 @@
 Golang mfworker
 ----------
-> Mfworker is a memory and file base task worker for Golang. 
+> Mfworker is a memory and file based task worker for Golang. 
 > It's embeddable for golang project. So it's only work for single process application.
 
 ## Features
