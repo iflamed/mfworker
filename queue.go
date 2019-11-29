@@ -35,8 +35,11 @@ func NewQueue(count, maxItems uint, path string, logger badger.Logger) *Queue {
 	q.WorkerCount = count
 	q.mstore = storage.NewMemoryStorage(q.MaxItemsInMem)
 	if path != "" {
-		q.pstore, _ = storage.NewBadgerStorage(path, logger)
-		q.Logger = q.pstore.Logger
+		var err error
+		q.pstore, err = storage.NewBadgerStorage(path, logger)
+		if err == nil && q.pstore != nil {
+			q.Logger = q.pstore.Logger
+		}
 	}
 	q.jobChan = make(chan *Job, q.WorkerCount)
 	q.stopChan = make(chan bool, 1)
