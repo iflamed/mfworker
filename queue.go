@@ -182,6 +182,17 @@ func (s *Queue) Handler(name string, fn func(job *Job)) {
 	s.Unlock()
 }
 
+func (s *Queue) CountPendingJobs() (num uint64)  {
+	s.RLock()
+	defer s.RUnlock()
+	if s.pstore != nil {
+		num = num + s.pstore.Length()
+	}
+	num = num + uint64(len(s.jobChan))
+	num = num + uint64(s.mstore.Length())
+	return
+}
+
 func (s *Queue) Debugf(format string, v ...interface{})  {
 	if s.Logger != nil {
 		s.Logger.Debugf(format, v...)

@@ -29,6 +29,10 @@ func TestNewQueue(t *testing.T) {
 			}
 			q.Dispatch(job)
 		}
+		jobs := q.CountPendingJobs()
+		if jobs <= 0 {
+			t.Errorf("Queue jobs should not empty.")
+		}
 	}()
 	<-time.After(10 * time.Second)
 	q.Stop()
