@@ -26,6 +26,17 @@ func (m *MemoryStorage) Push(value []byte) bool {
 	return true
 }
 
+func (m *MemoryStorage) PushJob(jobId, value []byte) bool {
+	m.Lock()
+	defer m.Unlock()
+	length := uint(len(m.Items))
+	if length >= m.MaxLength {
+		return false
+	}
+	m.Items = append(m.Items, value)
+	return true
+}
+
 func (m *MemoryStorage) Shift() []byte {
 	var value []byte
 	m.Lock()

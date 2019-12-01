@@ -51,7 +51,11 @@ func (s *Queue) Dispatch(job *Job) bool {
 	s.Lock()
 	defer s.Unlock()
 	if s.pstore != nil  && (s.pstore.Length() > 0 || s.mstore.Length() >= s.MaxItemsInMem) {
-		s.pstore.Push(job.toJson())
+		if job.Id != "" {
+			s.pstore.PushJob([]byte(job.Id), job.toJson())
+		} else {
+			s.pstore.Push(job.toJson())
+		}
 	} else if s.mstore.Length() < s.MaxItemsInMem {
 		s.mstore.Push(job.toJson())
 	} else {

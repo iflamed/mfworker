@@ -27,6 +27,9 @@ func TestNewQueue(t *testing.T) {
 				Name:    "Test",
 				Payload: []byte("body " + strconv.Itoa(i)),
 			}
+			if (i % 2) != 0 {
+				job.Id = strconv.Itoa(i)
+			}
 			q.Dispatch(job)
 		}
 		jobs := q.CountPendingJobs()

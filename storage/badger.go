@@ -50,6 +50,17 @@ func (s *BadgerStorage) Push(value []byte) bool {
 	return false
 }
 
+func (s *BadgerStorage) PushJob(jobId, value []byte) bool {
+	err := s.db.Update(func(txn *badger.Txn) error {
+		err := txn.Set(jobId, value)
+		return err
+	})
+	if err == nil {
+		return true
+	}
+	return false
+}
+
 func (s *BadgerStorage) Shift() []byte {
 	var value []byte
 	err := s.db.Update(func(txn *badger.Txn) error {

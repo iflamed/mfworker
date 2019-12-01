@@ -3,11 +3,12 @@ package mfworker
 import "encoding/json"
 
 type Job struct {
-	Name string `json:"name"`
+	Id      string `json:"id"`
+	Name    string `json:"name"`
 	Payload []byte `json:"payload"`
 }
 
-func (j *Job) toJson() []byte  {
+func (j *Job) toJson() []byte {
 	res, err := json.Marshal(j)
 	if err != nil {
 		return nil
@@ -15,7 +16,7 @@ func (j *Job) toJson() []byte  {
 	return res
 }
 
-func (j *Job) Unmarshal(v interface{}) error  {
+func (j *Job) Unmarshal(v interface{}) error {
 	return json.Unmarshal(j.Payload, v)
 }
 
