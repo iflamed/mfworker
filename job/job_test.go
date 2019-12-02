@@ -1,4 +1,4 @@
-package mfworker
+package job
 
 import (
 	"bytes"
@@ -21,7 +21,7 @@ func TestNewJob(t *testing.T) {
 		Name:    "Task",
 		Payload: res,
 	}
-	jobStr := job.toJson()
+	jobStr := job.ToJson()
 	if jobStr == nil {
 		t.Error("Serialize job failed.")
 	}

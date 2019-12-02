@@ -3,6 +3,7 @@ package storage
 import (
 	"errors"
 	"github.com/dgraph-io/badger/v2"
+	"github.com/iflamed/mfworker/job"
 	"github.com/satori/go.uuid"
 )
 
@@ -55,6 +56,25 @@ func (s *BadgerStorage) PushJob(jobId, value []byte) bool {
 		err := txn.Set(jobId, value)
 		return err
 	})
+	if err == nil {
+		return true
+	}
+	return false
+}
+
+func (s *BadgerStorage) PushJobs(jobs []*job.Job) bool {
+	wb := s.db.NewWriteBatch()
+	defer wb.Cancel()
+
+	for _, bjob := range jobs {
+		if bjob.Id != "" {
+			_ = wb.Set([]byte(bjob.Id), bjob.ToJson()) // Will create txns as needed.
+		} else {
+			u2 := uuid.NewV4()
+			_ = wb.Set(u2.Bytes(), bjob.ToJson())
+		}
+	}
+	err := wb.Flush()
 	if err == nil {
 		return true
 	}

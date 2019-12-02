@@ -2,6 +2,7 @@ package mfworker
 
 import (
 	"github.com/dgraph-io/badger/v2"
+	"github.com/iflamed/mfworker/job"
 	"github.com/iflamed/mfworker/storage"
 	"log"
 	"sync"
@@ -15,10 +16,10 @@ type Queue struct {
 	WorkerCount   uint
 	mstore        *storage.MemoryStorage
 	pstore        *storage.BadgerStorage
-	jobChan       chan *Job
+	jobChan       chan *job.Job
 	stopChan      chan bool
 	workers       []*worker
-	handlers      map[string]func(job *Job)
+	handlers      map[string]func(job *job.Job)
 	Logger 		  badger.Logger
 }
 
@@ -41,23 +42,44 @@ func NewQueue(count, maxItems uint, path string, logger badger.Logger) *Queue {
 			q.Logger = q.pstore.Logger
 		}
 	}
-	q.jobChan = make(chan *Job, q.WorkerCount)
+	q.jobChan = make(chan *job.Job, q.WorkerCount)
 	q.stopChan = make(chan bool, 1)
-	q.handlers = map[string]func(job *Job){}
+	q.handlers = map[string]func(job *job.Job){}
 	return q
 }
 
-func (s *Queue) Dispatch(job *Job) bool {
+func (s *Queue) Dispatch(job *job.Job) bool {
 	s.Lock()
 	defer s.Unlock()
 	if s.pstore != nil  && (s.pstore.Length() > 0 || s.mstore.Length() >= s.MaxItemsInMem) {
 		if job.Id != "" {
-			s.pstore.PushJob([]byte(job.Id), job.toJson())
+			s.pstore.PushJob([]byte(job.Id), job.ToJson())
 		} else {
-			s.pstore.Push(job.toJson())
+			s.pstore.Push(job.ToJson())
 		}
 	} else if s.mstore.Length() < s.MaxItemsInMem {
-		s.mstore.Push(job.toJson())
+		s.mstore.Push(job.ToJson())
+	} else {
+		return false
+	}
+	return true
+}
+
+func (s *Queue) DispatchJobs(jobs []*job.Job) bool {
+	s.Lock()
+	defer s.Unlock()
+	var batchJobs []*job.Job
+	for _, job := range jobs {
+		if s.pstore != nil  && (s.pstore.Length() > 0 || s.mstore.Length() >= s.MaxItemsInMem) {
+			batchJobs = append(batchJobs, job)
+		} else if s.mstore.Length() < s.MaxItemsInMem {
+			s.mstore.Push(job.ToJson())
+		}
+	}
+	if s.pstore != nil  && (s.pstore.Length() > 0 || s.mstore.Length() >= s.MaxItemsInMem) {
+		if len(batchJobs) > 0 {
+			s.pstore.PushJobs(batchJobs)
+		}
 	} else {
 		return false
 	}
@@ -111,7 +133,7 @@ func (s *Queue) startDispatcher() {
 				jobBytes := s.mstore.Shift()
 				s.Unlock()
 				if jobBytes != nil {
-					job := NewJobFromJSON(jobBytes)
+					job := job.NewJobFromJSON(jobBytes)
 					s.jobChan <- job
 				} else {
 					time.Sleep(100 * time.Millisecond)
@@ -121,7 +143,7 @@ func (s *Queue) startDispatcher() {
 	}()
 }
 
-func (s *Queue) processJob(job *Job) {
+func (s *Queue) processJob(job *job.Job) {
 	for key, handler := range s.handlers {
 		if key == job.Name {
 			handler(job)
@@ -159,7 +181,7 @@ func (s *Queue) persistJobs()  {
 		for len(s.jobChan) > 0 {
 			s.Debugf("The job chan buffer length is %d \n", len(s.jobChan))
 			job := <-s.jobChan
-			s.pstore.Push(job.toJson())
+			s.pstore.Push(job.ToJson())
 		}
 		s.Debugf("The persist storage length is %d \n", s.pstore.Length())
 		s.Debugf("The memory storage length is %d \n", s.mstore.Length())
@@ -180,7 +202,7 @@ func (s *Queue) persistJobs()  {
 	s.mstore.Close()
 }
 
-func (s *Queue) Handler(name string, fn func(job *Job)) {
+func (s *Queue) Handler(name string, fn func(job *job.Job)) {
 	s.Lock()
 	s.handlers[name] = fn
 	s.Unlock()

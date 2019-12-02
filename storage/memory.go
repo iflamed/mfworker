@@ -1,6 +1,9 @@
 package storage
 
-import "sync"
+import (
+	"github.com/iflamed/mfworker/job"
+	"sync"
+)
 
 type MemoryStorage struct {
 	sync.Mutex
@@ -34,6 +37,19 @@ func (m *MemoryStorage) PushJob(jobId, value []byte) bool {
 		return false
 	}
 	m.Items = append(m.Items, value)
+	return true
+}
+
+func (m *MemoryStorage) PushJobs(jobs []*job.Job) bool {
+	m.Lock()
+	defer m.Unlock()
+	length := uint(len(m.Items))
+	if length >= m.MaxLength {
+		return false
+	}
+	for _, job := range jobs {
+		m.Items = append(m.Items, job.ToJson())
+	}
 	return true
 }
 

@@ -1,6 +1,7 @@
 package mfworker
 
 import (
+	"github.com/iflamed/mfworker/job"
 	"log"
 	"strconv"
 	"testing"
@@ -16,14 +17,14 @@ func TestNewQueue(t *testing.T) {
 	maxItems = 16
 	path := "./test.db"
 	q := NewQueue(count, maxItems, path, nil)
-	q.Handler("Test", func(job *Job) {
+	q.Handler("Test", func(job *job.Job) {
 		time.Sleep(time.Second)
 		log.Printf("the job name %s, job body %s ", job.Name, job.Payload)
 	})
 	q.Start()
 	go func() {
 		for i := 0; i < 64; i++ {
-			job := &Job{
+			job := &job.Job{
 				Name:    "Test",
 				Payload: []byte("body " + strconv.Itoa(i)),
 			}
@@ -32,8 +33,20 @@ func TestNewQueue(t *testing.T) {
 			}
 			q.Dispatch(job)
 		}
-		jobs := q.CountPendingJobs()
-		if jobs <= 0 {
+		var jobs []*job.Job
+		for i := 0; i < 64; i++ {
+			job := &job.Job{
+				Name:    "Test",
+				Payload: []byte("body " + strconv.Itoa(i)),
+			}
+			if (i % 2) != 0 {
+				job.Id = strconv.Itoa(i)
+			}
+			jobs = append(jobs, job)
+		}
+		q.DispatchJobs(jobs)
+		num := q.CountPendingJobs()
+		if num <= 0 {
 			t.Errorf("Queue jobs should not empty.")
 		}
 	}()

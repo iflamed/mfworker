@@ -1,4 +1,4 @@
-package mfworker
+package job
 
 import "encoding/json"
 
@@ -8,7 +8,7 @@ type Job struct {
 	Payload []byte `json:"payload"`
 }
 
-func (j *Job) toJson() []byte {
+func (j *Job) ToJson() []byte {
 	res, err := json.Marshal(j)
 	if err != nil {
 		return nil
