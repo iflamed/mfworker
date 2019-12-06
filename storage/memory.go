@@ -29,7 +29,7 @@ func (m *MemoryStorage) Push(value []byte) bool {
 	return true
 }
 
-func (m *MemoryStorage) PushJob(jobId, value []byte) bool {
+func (m *MemoryStorage) PushJob(_, value []byte) bool {
 	m.Lock()
 	defer m.Unlock()
 	length := uint(len(m.Items))
@@ -47,8 +47,8 @@ func (m *MemoryStorage) PushJobs(jobs []*job.Job) bool {
 	if length >= m.MaxLength {
 		return false
 	}
-	for _, job := range jobs {
-		m.Items = append(m.Items, job.ToJson())
+	for _, item := range jobs {
+		m.Items = append(m.Items, item.ToJson())
 	}
 	return true
 }

@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"github.com/dgraph-io/badger/v2"
 	"github.com/iflamed/mfworker/job"
 )
 
@@ -10,5 +11,6 @@ type Bucket interface {
 	PushJobs(jobs []*job.Job) bool
 	Shift() []byte
 	Length() uint64
+	GetLogger() badger.Logger
 	Close()
 }

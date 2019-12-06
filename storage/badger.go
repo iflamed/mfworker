@@ -158,3 +158,7 @@ func (s *BadgerStorage) Length() uint64 {
 	})
 	return dbLen
 }
+
+func (s *BadgerStorage) GetLogger() badger.Logger {
+	return s.Logger
+}

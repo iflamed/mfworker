@@ -15,7 +15,7 @@ type Queue struct {
 	MaxItemsInMem uint
 	WorkerCount   uint
 	mstore        *storage.MemoryStorage
-	pstore        *storage.BadgerStorage
+	pstore        storage.Bucket
 	jobChan       chan *job.Job
 	stopChan      chan bool
 	workers       []*worker
@@ -36,16 +36,40 @@ func NewQueue(count, maxItems uint, path string, logger badger.Logger) *Queue {
 	q.WorkerCount = count
 	q.mstore = storage.NewMemoryStorage(q.MaxItemsInMem)
 	if path != "" {
-		var err error
-		q.pstore, err = storage.NewBadgerStorage(path, logger)
-		if err == nil && q.pstore != nil {
-			q.Logger = q.pstore.Logger
+		q.pstore = storage.NewDiskQueueStorage(path, maxItems, logger)
+		if q.pstore != nil {
+			q.Logger = q.pstore.GetLogger()
 		}
 	}
 	q.jobChan = make(chan *job.Job, q.WorkerCount)
 	q.stopChan = make(chan bool, 1)
 	q.handlers = map[string]func(job *job.Job){}
 	return q
+}
+
+func (s *Queue) UseBadgerStorage()  {
+	s.Lock()
+	defer s.Unlock()
+	if s.pstore != nil {
+		s.pstore.Close()
+	}
+	var err error
+	s.pstore, err = storage.NewBadgerStorage(s.PersistPath, s.Logger)
+	if err == nil && s.pstore != nil {
+		s.Logger = s.pstore.GetLogger()
+	}
+}
+
+func (s *Queue) UseDiskQueueStorage()  {
+	s.Lock()
+	defer s.Unlock()
+	if s.pstore != nil {
+		s.pstore.Close()
+	}
+	s.pstore = storage.NewDiskQueueStorage(s.PersistPath, s.MaxItemsInMem, s.Logger)
+	if s.pstore != nil {
+		s.Logger = s.pstore.GetLogger()
+	}
 }
 
 func (s *Queue) Dispatch(job *job.Job) bool {
@@ -69,11 +93,11 @@ func (s *Queue) DispatchJobs(jobs []*job.Job) bool {
 	s.Lock()
 	defer s.Unlock()
 	var batchJobs []*job.Job
-	for _, job := range jobs {
+	for _, item := range jobs {
 		if s.pstore != nil  && (s.pstore.Length() > 0 || s.mstore.Length() >= s.MaxItemsInMem) {
-			batchJobs = append(batchJobs, job)
+			batchJobs = append(batchJobs, item)
 		} else if s.mstore.Length() < s.MaxItemsInMem {
-			s.mstore.Push(job.ToJson())
+			s.mstore.Push(item.ToJson())
 		}
 	}
 	if s.pstore != nil  && (s.pstore.Length() > 0 || s.mstore.Length() >= s.MaxItemsInMem) {
@@ -103,9 +127,9 @@ func (s *Queue) startWorker() {
 		go func(w *worker) {
 			for {
 				select {
-				case job := <-s.jobChan:
-					if job != nil {
-						s.processJob(job)
+				case item := <-s.jobChan:
+					if item != nil {
+						s.processJob(item)
 					}
 				case <-w.Quit:
 					w.wg.Done()
@@ -133,8 +157,8 @@ func (s *Queue) startDispatcher() {
 				jobBytes := s.mstore.Shift()
 				s.Unlock()
 				if jobBytes != nil {
-					job := job.NewJobFromJSON(jobBytes)
-					s.jobChan <- job
+					item := job.NewJobFromJSON(jobBytes)
+					s.jobChan <- item
 				} else {
 					time.Sleep(100 * time.Millisecond)
 				}
@@ -180,8 +204,8 @@ func (s *Queue) persistJobs()  {
 		s.Debugf("The persist storage length is %d \n", s.pstore.Length())
 		for len(s.jobChan) > 0 {
 			s.Debugf("The job chan buffer length is %d \n", len(s.jobChan))
-			job := <-s.jobChan
-			s.pstore.Push(job.ToJson())
+			item := <-s.jobChan
+			s.pstore.Push(item.ToJson())
 		}
 		s.Debugf("The persist storage length is %d \n", s.pstore.Length())
 		s.Debugf("The memory storage length is %d \n", s.mstore.Length())
