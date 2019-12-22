@@ -7,7 +7,7 @@ import (
 )
 
 func TestNewDiskQueueStorage(t *testing.T) {
-	nq := NewDiskQueueStorage("../nsq.db", 32, nil)
+	nq := NewDiskQueueStorage("../nsq.db", "mfworker", 32, nil)
 	t.Logf("The queue length is %d when start", nq.Length())
 	var jobs []*job.Job
 	var jobCount int = 0

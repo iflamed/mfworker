@@ -1,8 +1,8 @@
 package mfworker
 
 import (
-	"github.com/dgraph-io/badger/v2"
 	"github.com/iflamed/mfworker/job"
+	mflog "github.com/iflamed/mfworker/log"
 	"github.com/iflamed/mfworker/storage"
 	"log"
 	"sync"
@@ -20,7 +20,7 @@ type Queue struct {
 	stopChan      chan bool
 	workers       []*worker
 	handlers      map[string]func(job *job.Job)
-	Logger 		  badger.Logger
+	Logger 		  mflog.Logger
 }
 
 type worker struct {
@@ -29,14 +29,14 @@ type worker struct {
 	wg   *sync.WaitGroup
 }
 
-func NewQueue(count, maxItems uint, path string, logger badger.Logger) *Queue {
+func NewQueue(count, maxItems uint, path, queueName string, logger mflog.Logger) *Queue {
 	q := &Queue{}
 	q.PersistPath = path
 	q.MaxItemsInMem = maxItems
 	q.WorkerCount = count
 	q.mstore = storage.NewMemoryStorage(q.MaxItemsInMem)
 	if path != "" {
-		q.pstore = storage.NewDiskQueueStorage(path, maxItems, logger)
+		q.pstore = storage.NewDiskQueueStorage(path, queueName, maxItems, logger)
 		if q.pstore != nil {
 			q.Logger = q.pstore.GetLogger()
 		}
@@ -45,31 +45,6 @@ func NewQueue(count, maxItems uint, path string, logger badger.Logger) *Queue {
 	q.stopChan = make(chan bool, 1)
 	q.handlers = map[string]func(job *job.Job){}
 	return q
-}
-
-func (s *Queue) UseBadgerStorage()  {
-	s.Lock()
-	defer s.Unlock()
-	if s.pstore != nil {
-		s.pstore.Close()
-	}
-	var err error
-	s.pstore, err = storage.NewBadgerStorage(s.PersistPath, s.Logger)
-	if err == nil && s.pstore != nil {
-		s.Logger = s.pstore.GetLogger()
-	}
-}
-
-func (s *Queue) UseDiskQueueStorage()  {
-	s.Lock()
-	defer s.Unlock()
-	if s.pstore != nil {
-		s.pstore.Close()
-	}
-	s.pstore = storage.NewDiskQueueStorage(s.PersistPath, s.MaxItemsInMem, s.Logger)
-	if s.pstore != nil {
-		s.Logger = s.pstore.GetLogger()
-	}
 }
 
 func (s *Queue) Dispatch(job *job.Job) bool {

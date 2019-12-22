@@ -1,8 +1,8 @@
 package storage
 
 import (
-	"github.com/dgraph-io/badger/v2"
 	"github.com/iflamed/mfworker/job"
+	"github.com/iflamed/mfworker/log"
 	"github.com/nsqio/go-diskqueue"
 	"sync"
 	"time"
@@ -11,17 +11,17 @@ import (
 type DiskQueueStorage struct {
 	sync.RWMutex
 	dqueue diskqueue.Interface
-	Logger badger.Logger
+	Logger log.Logger
 	length int64
 }
 
-func NewDiskQueueStorage(path string, maxLen uint, logger badger.Logger) *DiskQueueStorage {
+func NewDiskQueueStorage(path, queueName string, maxLen uint, logger log.Logger) *DiskQueueStorage {
 	// 每个文件64MB
 	maxBytesPerfile := 64 * 1024 * 1024
 	queue := &DiskQueueStorage{
 		Logger: logger,
 	}
-	queue.dqueue = diskqueue.New("mfworker", path, int64(maxBytesPerfile), 4, 64 * 1024, int64(maxLen), 10 * time.Second, queue.logf)
+	queue.dqueue = diskqueue.New(queueName, path, int64(maxBytesPerfile), 4, 64 * 1024, int64(maxLen), 10 * time.Second, queue.logf)
 	queue.length = queue.dqueue.Depth()
 	return queue
 }
@@ -96,6 +96,6 @@ func (q *DiskQueueStorage) Close() {
 	_ = q.dqueue.Close()
 }
 
-func (q *DiskQueueStorage) GetLogger() badger.Logger  {
+func (q *DiskQueueStorage) GetLogger() log.Logger  {
 	return q.Logger
 }
