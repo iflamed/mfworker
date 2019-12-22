@@ -30,7 +30,8 @@ func main()  {
     count = 4
     maxItems = 16
     path := "./test.db"
-    q := mfworker.NewQueue(count, maxItems, path, nil)
+    queueName := "mfworkder"
+    q := mfworker.NewQueue(count, maxItems, path, queueName, nil)
     q.Handler("Test", func(job *mfworker.Job) {
         time.Sleep(time.Second)
         log.Printf("the job name %s, job body %s ", job.Name, job.Payload)
