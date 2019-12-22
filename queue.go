@@ -36,6 +36,9 @@ func NewQueue(count, maxItems uint, path, queueName string, logger mflog.Logger)
 	q.WorkerCount = count
 	q.mstore = storage.NewMemoryStorage(q.MaxItemsInMem)
 	if path != "" {
+		if queueName == "" {
+			queueName = "mfworker"
+		}
 		q.pstore = storage.NewDiskQueueStorage(path, queueName, maxItems, logger)
 		if q.pstore != nil {
 			q.Logger = q.pstore.GetLogger()
